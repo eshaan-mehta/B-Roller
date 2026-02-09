@@ -146,21 +146,38 @@ class BRollGenerator:
     def select_all(self):
         for name, cfg in self.clip_configs.items():
             cfg['var'].set(True)
+            # Show configure button
+            if 'btn_config' in cfg:
+                cfg['btn_config'].pack(side="right", padx=5)
         self.update_count()
 
     def select_none(self):
         for name, cfg in self.clip_configs.items():
             cfg['var'].set(False)
+            # Hide configure button and close config if open
+            if 'btn_config' in cfg:
+                cfg['btn_config'].pack_forget()
+            if cfg['expanded']:
+                cfg['config_frame'].pack_forget()
+                cfg['expanded'] = False
         self.update_count()
 
     def toggle_clip_config(self, clip_name):
         """Toggle the visibility of per-clip configuration frame"""
         cfg = self.clip_configs[clip_name]
+
+        # Close any other open config first
+        for name, other_cfg in self.clip_configs.items():
+            if name != clip_name and other_cfg['expanded']:
+                other_cfg['config_frame'].pack_forget()
+                other_cfg['expanded'] = False
+
         if cfg['expanded']:
             cfg['config_frame'].pack_forget()
             cfg['expanded'] = False
         else:
-            cfg['config_frame'].pack(fill="x", padx=20, pady=2)
+            # Pack config frame right after the clip row (inside the container)
+            cfg['config_frame'].pack(fill="x", padx=20, pady=2, after=cfg['clip_row'])
             cfg['expanded'] = True
 
     def reset_clip_range(self, clip_name):
@@ -278,32 +295,49 @@ class BRollGenerator:
                         duration_sec = 0
                         duration_str = "0:00"
 
+                # Create container frame that holds both clip row and config
+                container = tk.Frame(self.scrollable_frame)
+                container.pack(fill="x", padx=5, pady=2)
+
                 # Create main clip row frame
-                clip_row = tk.Frame(self.scrollable_frame)
-                clip_row.pack(fill="x", padx=5, pady=2)
+                clip_row = tk.Frame(container)
+                clip_row.pack(fill="x")
 
                 # Checkbox and label
                 var = tk.BooleanVar(value=False)
-                chk = tk.Checkbutton(clip_row, text=f"{clip_name} ({duration_str})",
-                                     variable=var, anchor="w", command=self.update_count)
-                chk.pack(side="left", fill="x", expand=True)
 
-                # Configure button
+                # Configure button (initially hidden, shown when clip is selected)
                 btn_config = tk.Button(clip_row, text="⚙ Configure", font=("Arial", 8),
                                        command=lambda cn=clip_name: self.toggle_clip_config(cn))
-                btn_config.pack(side="right", padx=5)
+                # Don't pack yet - will be shown when checkbox is selected
 
-                # Hidden configuration frame
-                config_frame = tk.Frame(self.scrollable_frame, bg="#f0f0f0")
+                # Callback to show/hide configure button based on selection
+                def on_checkbox_toggle(v=var, btn=btn_config, cn=clip_name):
+                    if v.get():
+                        btn.pack(side="right", padx=5)
+                    else:
+                        btn.pack_forget()
+                        # Also close config if open
+                        if cn in self.clip_configs and self.clip_configs[cn]['expanded']:
+                            self.clip_configs[cn]['config_frame'].pack_forget()
+                            self.clip_configs[cn]['expanded'] = False
+                    self.update_count()
+
+                chk = tk.Checkbutton(clip_row, text=f"{clip_name} ({duration_str})",
+                                     variable=var, anchor="w", command=on_checkbox_toggle)
+                chk.pack(side="left", fill="x", expand=True)
+
+                # Hidden configuration frame (dark theme)
+                config_frame = tk.Frame(container, bg="#2d2d2d")
 
                 if is_still:
                     # For still images, show disabled inputs
-                    tk.Label(config_frame, text="Start:", bg="#f0f0f0").pack(side="left", padx=5)
+                    tk.Label(config_frame, text="Start:", bg="#2d2d2d", fg="white").pack(side="left", padx=5)
                     entry_start = tk.Entry(config_frame, width=8, state="disabled")
                     entry_start.insert(0, "N/A")
                     entry_start.pack(side="left")
 
-                    tk.Label(config_frame, text="End:", bg="#f0f0f0").pack(side="left", padx=5)
+                    tk.Label(config_frame, text="End:", bg="#2d2d2d", fg="white").pack(side="left", padx=5)
                     entry_end = tk.Entry(config_frame, width=8, state="disabled")
                     entry_end.insert(0, "N/A")
                     entry_end.pack(side="left")
@@ -315,17 +349,17 @@ class BRollGenerator:
                     range_start = tk.DoubleVar(value=0.0)
                     range_end = tk.DoubleVar(value=duration_sec)
 
-                    tk.Label(config_frame, text="Start:", bg="#f0f0f0").pack(side="left", padx=5)
+                    tk.Label(config_frame, text="Start:", bg="#2d2d2d", fg="white").pack(side="left", padx=5)
                     entry_start = tk.Entry(config_frame, textvariable=range_start, width=8)
                     entry_start.pack(side="left")
                     entry_start.bind("<FocusOut>", lambda e, cn=clip_name: self.validate_clip_range(cn))
 
-                    tk.Label(config_frame, text="sec  End:", bg="#f0f0f0").pack(side="left", padx=5)
+                    tk.Label(config_frame, text="sec  End:", bg="#2d2d2d", fg="white").pack(side="left", padx=5)
                     entry_end = tk.Entry(config_frame, textvariable=range_end, width=8)
                     entry_end.pack(side="left")
                     entry_end.bind("<FocusOut>", lambda e, cn=clip_name: self.validate_clip_range(cn))
 
-                    tk.Label(config_frame, text="sec", bg="#f0f0f0").pack(side="left", padx=5)
+                    tk.Label(config_frame, text="sec", bg="#2d2d2d", fg="white").pack(side="left", padx=5)
 
                     btn_reset = tk.Button(config_frame, text="Reset", font=("Arial", 8),
                                           command=lambda cn=clip_name: self.reset_clip_range(cn))
@@ -340,6 +374,8 @@ class BRollGenerator:
                     'range_start': range_start,
                     'range_end': range_end,
                     'config_frame': config_frame,
+                    'clip_row': clip_row,
+                    'btn_config': btn_config,
                     'expanded': False,
                     'is_still': is_still
                 }
