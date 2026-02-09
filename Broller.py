@@ -65,6 +65,36 @@ class BRollGenerator:
                        background=self.BG_LIGHT,
                        foreground=self.FG_PRIMARY)
 
+        # Custom button styles
+        style.configure("Dark.TButton",
+                       background=self.BG_LIGHT,
+                       foreground=self.FG_PRIMARY,
+                       borderwidth=0,
+                       padding=(12, 4))
+        style.map("Dark.TButton",
+                 background=[("active", self.BG_MEDIUM)],
+                 foreground=[("active", self.FG_PRIMARY)])
+
+        style.configure("Accent.TButton",
+                       background=self.ACCENT,
+                       foreground=self.FG_PRIMARY,
+                       borderwidth=0,
+                       padding=(0, 10),
+                       font=("Arial", 11, "bold"))
+        style.map("Accent.TButton",
+                 background=[("active", self.ACCENT_HOVER)],
+                 foreground=[("active", self.FG_PRIMARY)])
+
+        style.configure("Small.TButton",
+                       background=self.BG_LIGHT,
+                       foreground=self.FG_PRIMARY,
+                       borderwidth=0,
+                       padding=(8, 2),
+                       font=("Arial", 8))
+        style.map("Small.TButton",
+                 background=[("active", self.BG_DARK)],
+                 foreground=[("active", self.FG_PRIMARY)])
+
     def log(self, message):
         """Prints to console and updates UI label"""
         print(f"[LOG] {message}")
@@ -132,17 +162,12 @@ class BRollGenerator:
         btn_frame = tk.Frame(main_frame, bg=self.BG_DARK)
         btn_frame.pack(fill="x", pady=(6, 0))
 
-        btn_style = {"font": ("Arial", 9), "bg": self.BG_LIGHT, "fg": self.FG_PRIMARY,
-                    "activebackground": self.BG_MEDIUM, "activeforeground": self.FG_PRIMARY,
-                    "highlightbackground": self.BG_LIGHT, "highlightthickness": 0,
-                    "bd": 0, "padx": 12, "pady": 4}
-
-        tk.Button(btn_frame, text="Select All", command=self.select_all,
-                 **btn_style).pack(side="left", padx=(0, 6))
-        tk.Button(btn_frame, text="Select None", command=self.select_none,
-                 **btn_style).pack(side="left", padx=(0, 6))
-        tk.Button(btn_frame, text="Refresh", command=self.scan_media_pool,
-                 **btn_style).pack(side="left")
+        ttk.Button(btn_frame, text="Select All", command=self.select_all,
+                  style="Dark.TButton").pack(side="left", padx=(0, 6))
+        ttk.Button(btn_frame, text="Select None", command=self.select_none,
+                  style="Dark.TButton").pack(side="left", padx=(0, 6))
+        ttk.Button(btn_frame, text="Refresh", command=self.scan_media_pool,
+                  style="Dark.TButton").pack(side="left")
 
         # === SETTINGS SECTION ===
         settings_frame = tk.Frame(main_frame, bg=self.BG_MEDIUM, bd=0)
@@ -231,11 +256,8 @@ class BRollGenerator:
                 bg=self.BG_MEDIUM, fg=self.FG_SECONDARY).pack(side="left", padx=(4, 0))
 
         # === GENERATE BUTTON ===
-        self.btn_run = tk.Button(main_frame, text="Generate B-Roll",
-                                font=("Arial", 11, "bold"), bg=self.ACCENT, fg=self.FG_PRIMARY,
-                                activebackground=self.ACCENT_HOVER, activeforeground=self.FG_PRIMARY,
-                                highlightbackground=self.ACCENT, highlightthickness=0,
-                                bd=0, pady=10, command=self.generate)
+        self.btn_run = ttk.Button(main_frame, text="Generate B-Roll",
+                                 style="Accent.TButton", command=self.generate)
         self.btn_run.pack(fill="x", pady=(12, 0))
 
         # === STATUS BAR ===
@@ -424,16 +446,10 @@ class BRollGenerator:
                 # Truncate filename for display
                 display_name = self.truncate_filename(clip_name)
 
-                # Configure button style
-                btn_style = {"font": ("Arial", 8), "bg": self.BG_LIGHT, "fg": self.FG_PRIMARY,
-                            "activebackground": self.BG_DARK, "activeforeground": self.FG_PRIMARY,
-                            "highlightbackground": self.BG_LIGHT, "highlightthickness": 0,
-                            "bd": 0, "padx": 8, "pady": 2}
-
                 # Configure button (column 2) - always in grid, visibility controlled
-                btn_config = tk.Button(clip_row, text="Configure",
+                btn_config = ttk.Button(clip_row, text="Configure",
                                        command=lambda cn=clip_name: self.toggle_clip_config(cn),
-                                       **btn_style)
+                                       style="Small.TButton")
                 # Place in grid but hide initially
                 btn_config.grid(row=0, column=2, padx=(8, 0))
                 btn_config.grid_remove()  # Hide but keep position
@@ -494,12 +510,9 @@ class BRollGenerator:
                     tk.Label(config_inner, text="sec", font=("Arial", 8),
                             bg=self.BG_LIGHT, fg=self.FG_SECONDARY).pack(side="left", padx=(4, 12))
 
-                    btn_reset = tk.Button(config_inner, text="Reset",
-                                         command=lambda cn=clip_name: self.reset_clip_range(cn),
-                                         font=("Arial", 8), bg=self.BG_MEDIUM, fg=self.FG_PRIMARY,
-                                         activebackground=self.BG_DARK, activeforeground=self.FG_PRIMARY,
-                                         highlightbackground=self.BG_MEDIUM, highlightthickness=0,
-                                         bd=0, padx=6, pady=1)
+                    btn_reset = ttk.Button(config_inner, text="Reset",
+                                          command=lambda cn=clip_name: self.reset_clip_range(cn),
+                                          style="Small.TButton")
                     btn_reset.pack(side="left")
 
                 # Store configuration
