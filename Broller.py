@@ -134,8 +134,7 @@ class BRollGenerator:
 
         btn_style = {"font": ("Arial", 9), "bg": self.BG_LIGHT, "fg": self.FG_PRIMARY,
                     "activebackground": self.BG_MEDIUM, "activeforeground": self.FG_PRIMARY,
-                    "highlightbackground": self.BG_LIGHT, "highlightthickness": 0,
-                    "bd": 0, "padx": 12, "pady": 4}
+                    "bd": 0, "padx": 12, "pady": 4, "cursor": "hand2"}
 
         tk.Button(btn_frame, text="Select All", command=self.select_all,
                  **btn_style).pack(side="left", padx=(0, 6))
@@ -234,8 +233,7 @@ class BRollGenerator:
         self.btn_run = tk.Button(main_frame, text="Generate B-Roll",
                                 font=("Arial", 11, "bold"), bg=self.ACCENT, fg=self.FG_PRIMARY,
                                 activebackground=self.ACCENT_HOVER, activeforeground=self.FG_PRIMARY,
-                                highlightbackground=self.ACCENT, highlightthickness=0,
-                                bd=0, pady=10, command=self.generate)
+                                bd=0, pady=10, cursor="hand2", command=self.generate)
         self.btn_run.pack(fill="x", pady=(12, 0))
 
         # === STATUS BAR ===
@@ -427,8 +425,7 @@ class BRollGenerator:
                 # Configure button style
                 btn_style = {"font": ("Arial", 8), "bg": self.BG_LIGHT, "fg": self.FG_PRIMARY,
                             "activebackground": self.BG_DARK, "activeforeground": self.FG_PRIMARY,
-                            "highlightbackground": self.BG_LIGHT, "highlightthickness": 0,
-                            "bd": 0, "padx": 8, "pady": 2}
+                            "bd": 0, "padx": 8, "pady": 2, "cursor": "hand2"}
 
                 # Configure button (column 2) - always in grid, visibility controlled
                 btn_config = tk.Button(clip_row, text="Configure",
@@ -452,7 +449,7 @@ class BRollGenerator:
 
                 chk = tk.Checkbutton(clip_row, text=f"{display_name}  ({duration_str})",
                                      variable=var, anchor="w", command=on_checkbox_toggle,
-                                     font=("Arial", 10), bg=self.BG_MEDIUM, fg=self.FG_PRIMARY,
+                                     font=("Arial", 9), bg=self.BG_MEDIUM, fg=self.FG_PRIMARY,
                                      activebackground=self.BG_MEDIUM, activeforeground=self.FG_PRIMARY,
                                      selectcolor=self.BG_LIGHT)
                 chk.grid(row=0, column=0, columnspan=2, sticky="w")
@@ -498,8 +495,7 @@ class BRollGenerator:
                                          command=lambda cn=clip_name: self.reset_clip_range(cn),
                                          font=("Arial", 8), bg=self.BG_MEDIUM, fg=self.FG_PRIMARY,
                                          activebackground=self.BG_DARK, activeforeground=self.FG_PRIMARY,
-                                         highlightbackground=self.BG_MEDIUM, highlightthickness=0,
-                                         bd=0, padx=6, pady=1)
+                                         bd=0, padx=6, pady=1, cursor="hand2")
                     btn_reset.pack(side="left")
 
                 # Store configuration
