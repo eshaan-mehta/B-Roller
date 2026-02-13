@@ -330,22 +330,18 @@ class BRollGenerator:
                 # Now configure the checkbox command
                 chk.config(command=on_checkbox_toggle)
 
-                # Hidden configuration frame (dark theme)
-                config_frame = tk.Frame(container, bg="#2d2d2d")
+                # Hidden configuration frame
+                config_frame = tk.Frame(container)
 
                 if is_still:
                     # For still images, show disabled inputs
-                    tk.Label(config_frame, text="Start:", bg="#2d2d2d", fg="white").pack(side="left", padx=5)
-                    entry_start = tk.Entry(config_frame, width=8, state="disabled",
-                                           bg="#3c3c3c", fg="#a0a0a0", disabledbackground="#3c3c3c",
-                                           disabledforeground="#a0a0a0", bd=1)
+                    tk.Label(config_frame, text="Start:").pack(side="left", padx=5)
+                    entry_start = tk.Entry(config_frame, width=8, state="disabled", bd=1)
                     entry_start.insert(0, "N/A")
                     entry_start.pack(side="left")
 
-                    tk.Label(config_frame, text="End:", bg="#2d2d2d", fg="white").pack(side="left", padx=5)
-                    entry_end = tk.Entry(config_frame, width=8, state="disabled",
-                                         bg="#3c3c3c", fg="#a0a0a0", disabledbackground="#3c3c3c",
-                                         disabledforeground="#a0a0a0", bd=1)
+                    tk.Label(config_frame, text="End:").pack(side="left", padx=5)
+                    entry_end = tk.Entry(config_frame, width=8, state="disabled", bd=1)
                     entry_end.insert(0, "N/A")
                     entry_end.pack(side="left")
 
@@ -356,24 +352,19 @@ class BRollGenerator:
                     range_start = tk.DoubleVar(value=0.0)
                     range_end = tk.DoubleVar(value=duration_sec)
 
-                    tk.Label(config_frame, text="Start:", bg="#2d2d2d", fg="white").pack(side="left", padx=5)
-                    entry_start = tk.Entry(config_frame, textvariable=range_start, width=8,
-                                           bg="#3c3c3c", fg="white", insertbackground="white", bd=1)
+                    tk.Label(config_frame, text="Start:").pack(side="left", padx=5)
+                    entry_start = tk.Entry(config_frame, textvariable=range_start, width=8, bd=1)
                     entry_start.pack(side="left")
                     entry_start.bind("<FocusOut>", lambda e, cn=clip_name: self.validate_clip_range(cn))
 
-                    tk.Label(config_frame, text="sec  End:", bg="#2d2d2d", fg="white").pack(side="left", padx=5)
-                    entry_end = tk.Entry(config_frame, textvariable=range_end, width=8,
-                                         bg="#3c3c3c", fg="white", insertbackground="white", bd=1)
+                    tk.Label(config_frame, text="sec  End:").pack(side="left", padx=5)
+                    entry_end = tk.Entry(config_frame, textvariable=range_end, width=8, bd=1)
                     entry_end.pack(side="left")
                     entry_end.bind("<FocusOut>", lambda e, cn=clip_name: self.validate_clip_range(cn))
 
-                    tk.Label(config_frame, text="sec", bg="#2d2d2d", fg="white").pack(side="left", padx=5)
+                    tk.Label(config_frame, text="sec").pack(side="left", padx=5)
 
                     btn_reset = tk.Button(config_frame, text="Reset", font=("Arial", 8),
-                                          bg="#3c3c3c", fg="white",
-                                          activebackground="#4a4a4a", activeforeground="white",
-                                          highlightbackground="#2d2d2d",
                                           command=lambda cn=clip_name: self.reset_clip_range(cn))
                     btn_reset.pack(side="left", padx=10)
 
