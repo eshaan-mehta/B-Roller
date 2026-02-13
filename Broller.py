@@ -30,70 +30,16 @@ def parse_timecode_to_frames(timecode_str):
 
 # --- MAIN LOGIC ---
 class BRollGenerator:
-    # Color scheme
-    BG_DARK = "#1e1e1e"
-    BG_MEDIUM = "#2d2d2d"
-    BG_LIGHT = "#3c3c3c"
-    FG_PRIMARY = "#ffffff"
-    FG_SECONDARY = "#a0a0a0"
-    ACCENT = "#4a9eff"
-    ACCENT_HOVER = "#6bb3ff"
-
     def __init__(self, root):
         self.root = root
-        self.root.title("B-Roll Generator")
-        self.root.geometry("480x680")
-        self.root.configure(bg=self.BG_DARK)
-        self.root.resizable(True, True)
-        self.root.minsize(400, 500)
+        self.root.title("B-Roll Generator (Timecode Fix)")
+        self.root.geometry("500x700")
 
-        self.clip_configs = {}
-        self.used_segments = {}
+        self.clip_configs = {}  # New data structure for clip configuration
+        self.used_segments = {}  # Track used segments for duplicate prevention
 
-        # Configure ttk styles
-        self.setup_styles()
         self.setup_ui()
         self.scan_media_pool()
-
-    def setup_styles(self):
-        """Configure ttk widget styles for consistent appearance"""
-        style = ttk.Style()
-        style.theme_use('clam')
-
-        style.configure("TCombobox",
-                       fieldbackground=self.BG_LIGHT,
-                       background=self.BG_LIGHT,
-                       foreground=self.FG_PRIMARY)
-
-        # Custom button styles
-        style.configure("Dark.TButton",
-                       background=self.BG_LIGHT,
-                       foreground=self.FG_PRIMARY,
-                       borderwidth=0,
-                       padding=(12, 4))
-        style.map("Dark.TButton",
-                 background=[("active", self.BG_MEDIUM)],
-                 foreground=[("active", self.FG_PRIMARY)])
-
-        style.configure("Accent.TButton",
-                       background=self.ACCENT,
-                       foreground=self.FG_PRIMARY,
-                       borderwidth=0,
-                       padding=(0, 10),
-                       font=("Arial", 11, "bold"))
-        style.map("Accent.TButton",
-                 background=[("active", self.ACCENT_HOVER)],
-                 foreground=[("active", self.FG_PRIMARY)])
-
-        style.configure("Small.TButton",
-                       background=self.BG_LIGHT,
-                       foreground=self.FG_PRIMARY,
-                       borderwidth=0,
-                       padding=(8, 2),
-                       font=("Arial", 8))
-        style.map("Small.TButton",
-                 background=[("active", self.BG_DARK)],
-                 foreground=[("active", self.FG_PRIMARY)])
 
     def log(self, message):
         """Prints to console and updates UI label"""
@@ -101,186 +47,108 @@ class BRollGenerator:
         self.lbl_status.config(text=message)
         self.root.update()
 
-    def truncate_filename(self, name, max_length=35):
-        """Truncate filename with ellipsis in the middle if too long"""
-        if len(name) <= max_length:
-            return name
-        # Keep extension visible
-        if '.' in name:
-            base, ext = name.rsplit('.', 1)
-            available = max_length - len(ext) - 4  # 4 for "..." and "."
-            if available > 6:
-                half = available // 2
-                return f"{base[:half]}...{base[-half:]}.{ext}"
-        # Fallback: simple truncation
-        half = (max_length - 3) // 2
-        return f"{name[:half]}...{name[-half:]}"
-
     def setup_ui(self):
-        # Main container with padding
-        main_frame = tk.Frame(self.root, bg=self.BG_DARK)
-        main_frame.pack(fill="both", expand=True, padx=12, pady=8)
-
-        # === SOURCE CLIPS SECTION ===
-        clips_header = tk.Frame(main_frame, bg=self.BG_DARK)
-        clips_header.pack(fill="x", pady=(0, 6))
-
-        tk.Label(clips_header, text="Source Clips", font=("Arial", 11, "bold"),
-                bg=self.BG_DARK, fg=self.FG_PRIMARY).pack(side="left")
-
-        self.lbl_count = tk.Label(clips_header, text="0 selected",
-                                  font=("Arial", 9), bg=self.BG_DARK, fg=self.FG_SECONDARY)
-        self.lbl_count.pack(side="right")
-
-        # Clip list container
-        list_container = tk.Frame(main_frame, bg=self.BG_MEDIUM, bd=0)
-        list_container.pack(fill="both", expand=True)
-
-        self.canvas = tk.Canvas(list_container, bg=self.BG_MEDIUM,
-                               highlightthickness=0, bd=0)
-        self.scrollbar = tk.Scrollbar(list_container, orient="vertical",
-                                      command=self.canvas.yview)
-        self.scrollable_frame = tk.Frame(self.canvas, bg=self.BG_MEDIUM)
+        # 1. Clip Selection Area
+        lbl_list = tk.Label(self.root, text="1. Select Source Clips:", font=("Arial", 10, "bold"))
+        lbl_list.pack(pady=(10, 5), anchor="w", padx=10)
+        
+        list_container = tk.Frame(self.root, bd=1, relief="sunken")
+        list_container.pack(fill="both", expand=True, padx=10)
+        
+        self.canvas = tk.Canvas(list_container)
+        self.scrollbar = tk.Scrollbar(list_container, orient="vertical", command=self.canvas.yview)
+        self.scrollable_frame = tk.Frame(self.canvas)
 
         self.scrollable_frame.bind(
             "<Configure>",
             lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
         )
 
-        # Set fixed width for scrollable frame to prevent horizontal expansion
-        self.canvas_window = self.canvas.create_window((0, 0), window=self.scrollable_frame,
-                                                        anchor="nw")
+        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
-
-        # Bind canvas resize to update scrollable frame width
-        self.canvas.bind("<Configure>", self._on_canvas_configure)
 
         self.canvas.pack(side="left", fill="both", expand=True)
         self.scrollbar.pack(side="right", fill="y")
 
-        # Selection buttons
-        btn_frame = tk.Frame(main_frame, bg=self.BG_DARK)
-        btn_frame.pack(fill="x", pady=(6, 0))
-
-        ttk.Button(btn_frame, text="Select All", command=self.select_all,
-                  style="Dark.TButton").pack(side="left", padx=(0, 6))
-        ttk.Button(btn_frame, text="Select None", command=self.select_none,
-                  style="Dark.TButton").pack(side="left", padx=(0, 6))
-        ttk.Button(btn_frame, text="Refresh", command=self.scan_media_pool,
-                  style="Dark.TButton").pack(side="left")
-
-        # === SETTINGS SECTION ===
-        settings_frame = tk.Frame(main_frame, bg=self.BG_MEDIUM, bd=0)
-        settings_frame.pack(fill="x", pady=(12, 0))
-
-        settings_inner = tk.Frame(settings_frame, bg=self.BG_MEDIUM)
-        settings_inner.pack(fill="x", padx=12, pady=10)
-
-        # Row 1: Destination Track
-        row1 = tk.Frame(settings_inner, bg=self.BG_MEDIUM)
-        row1.pack(fill="x", pady=(0, 8))
-
-        tk.Label(row1, text="Destination Track", font=("Arial", 9),
-                bg=self.BG_MEDIUM, fg=self.FG_PRIMARY).pack(side="left")
-
+        # Selection Tools
+        btn_frame = tk.Frame(self.root)
+        btn_frame.pack(fill="x", padx=10, pady=5)
+        
+        tk.Button(btn_frame, text="Select All", command=self.select_all).pack(side="left", padx=(0, 5))
+        tk.Button(btn_frame, text="Select None", command=self.select_none).pack(side="left", padx=(0, 5))
+        tk.Button(btn_frame, text="Refresh Clips", command=self.scan_media_pool).pack(side="left")
+        self.lbl_count = tk.Label(btn_frame, text="Selected: 0", fg="blue", font=("Arial", 10, "bold"))
+        self.lbl_count.pack(side="right")
+        
+        # 2. Settings Area
+        lbl_settings = tk.Label(self.root, text="2. Configuration:", font=("Arial", 10, "bold"))
+        lbl_settings.pack(pady=(15, 5), anchor="w", padx=10)
+        
+        frame_settings = tk.LabelFrame(self.root, text="Clip Settings")
+        frame_settings.pack(fill="x", padx=10)
+        
+        # -- Track Selection (NEW) --
+        tk.Label(frame_settings, text="Dest Track:").grid(row=0, column=0, padx=5, pady=5)
         self.track_var = tk.StringVar()
-        self.combo_tracks = ttk.Combobox(row1, textvariable=self.track_var,
-                                         state="readonly", width=14)
-        self.combo_tracks.pack(side="right")
+        self.combo_tracks = ttk.Combobox(frame_settings, textvariable=self.track_var, state="readonly", width=15)
+        self.combo_tracks.grid(row=0, column=1, columnspan=2, sticky="w")
+        
+        # -- Min/Max --
+        tk.Label(frame_settings, text="Min Sec:").grid(row=1, column=0, padx=5, pady=5)
+        self.entry_min = tk.Entry(frame_settings, width=5)
+        self.entry_min.insert(0, "2.0")
+        self.entry_min.grid(row=1, column=1, sticky="w")
 
-        # Row 2: Clip Duration
-        row2 = tk.Frame(settings_inner, bg=self.BG_MEDIUM)
-        row2.pack(fill="x", pady=(0, 8))
+        tk.Label(frame_settings, text="Max Sec:").grid(row=1, column=2, padx=5, pady=5)
+        self.entry_max = tk.Entry(frame_settings, width=5)
+        self.entry_max.insert(0, "5.0")
+        self.entry_max.grid(row=1, column=3, sticky="w")
 
-        tk.Label(row2, text="Clip Duration (sec)", font=("Arial", 9),
-                bg=self.BG_MEDIUM, fg=self.FG_PRIMARY).pack(side="left")
-
-        dur_inputs = tk.Frame(row2, bg=self.BG_MEDIUM)
-        dur_inputs.pack(side="right")
-
-        self.entry_min = tk.Entry(dur_inputs, width=5, bg=self.BG_LIGHT,
-                                  fg=self.FG_PRIMARY, insertbackground=self.FG_PRIMARY, bd=1)
-        self.entry_min.insert(0, "2")
-        self.entry_min.pack(side="left")
-
-        tk.Label(dur_inputs, text=" – ", font=("Arial", 9),
-                bg=self.BG_MEDIUM, fg=self.FG_SECONDARY).pack(side="left")
-
-        self.entry_max = tk.Entry(dur_inputs, width=5, bg=self.BG_LIGHT,
-                                  fg=self.FG_PRIMARY, insertbackground=self.FG_PRIMARY, bd=1)
-        self.entry_max.insert(0, "5")
-        self.entry_max.pack(side="left")
-
-        # Row 3: Duplicate Prevention
-        row3 = tk.Frame(settings_inner, bg=self.BG_MEDIUM)
-        row3.pack(fill="x")
-
+        # -- Duplicate Prevention --
         self.prevent_duplicates = tk.BooleanVar(value=False)
-        chk_dup = tk.Checkbutton(row3, text="Prevent duplicate segments",
-                                 variable=self.prevent_duplicates, font=("Arial", 9),
-                                 bg=self.BG_MEDIUM, fg=self.FG_PRIMARY,
-                                 activebackground=self.BG_MEDIUM, activeforeground=self.FG_PRIMARY,
-                                 selectcolor=self.BG_LIGHT)
-        chk_dup.pack(side="left")
-
-        # === TARGET DURATION SECTION ===
-        target_frame = tk.Frame(main_frame, bg=self.BG_MEDIUM, bd=0)
-        target_frame.pack(fill="x", pady=(8, 0))
-
-        target_inner = tk.Frame(target_frame, bg=self.BG_MEDIUM)
-        target_inner.pack(fill="x", padx=12, pady=10)
-
+        tk.Checkbutton(frame_settings, text="Prevent Duplicate Segments",
+                       variable=self.prevent_duplicates).grid(row=2, column=0, columnspan=4,
+                                                              sticky="w", padx=5, pady=5)
+        
+        # 3. Track Duration
+        frame_dur = tk.LabelFrame(self.root, text="Target Duration Logic")
+        frame_dur.pack(fill="x", padx=10, pady=10)
+        
         self.dur_mode = tk.StringVar(value="match")
-
-        radio_style = {"font": ("Arial", 9), "bg": self.BG_MEDIUM, "fg": self.FG_PRIMARY,
-                      "activebackground": self.BG_MEDIUM, "activeforeground": self.FG_PRIMARY,
-                      "selectcolor": self.BG_LIGHT}
-
-        rb1 = tk.Radiobutton(target_inner, text="Match Track 1 length",
-                            variable=self.dur_mode, value="match", **radio_style)
+        
+        rb1 = tk.Radiobutton(frame_dur, text="Fill to Match Track 1 End", variable=self.dur_mode, value="match")
         rb1.pack(anchor="w")
-
-        fixed_row = tk.Frame(target_inner, bg=self.BG_MEDIUM)
-        fixed_row.pack(anchor="w", pady=(4, 0))
-
-        rb2 = tk.Radiobutton(fixed_row, text="Fixed duration:",
-                            variable=self.dur_mode, value="fixed", **radio_style)
+        
+        frame_manual = tk.Frame(frame_dur)
+        frame_manual.pack(anchor="w")
+        
+        rb2 = tk.Radiobutton(frame_manual, text="Add Fixed Seconds:", variable=self.dur_mode, value="fixed")
         rb2.pack(side="left")
-
-        self.entry_total = tk.Entry(fixed_row, width=6, bg=self.BG_LIGHT,
-                                    fg=self.FG_PRIMARY, insertbackground=self.FG_PRIMARY, bd=1)
+        
+        self.entry_total = tk.Entry(frame_manual, width=8)
         self.entry_total.insert(0, "60")
-        self.entry_total.pack(side="left", padx=(4, 0))
+        self.entry_total.pack(side="left", padx=5)
 
-        tk.Label(fixed_row, text="sec", font=("Arial", 9),
-                bg=self.BG_MEDIUM, fg=self.FG_SECONDARY).pack(side="left", padx=(4, 0))
-
-        # === GENERATE BUTTON ===
-        self.btn_run = ttk.Button(main_frame, text="Generate B-Roll",
-                                 style="Accent.TButton", command=self.generate)
-        self.btn_run.pack(fill="x", pady=(12, 0))
-
-        # === STATUS BAR ===
-        self.lbl_status = tk.Label(self.root, text="Ready", font=("Arial", 8),
-                                   bg=self.BG_LIGHT, fg=self.FG_SECONDARY,
-                                   anchor="w", padx=8, pady=4)
+        # 4. Status Bar
+        self.lbl_status = tk.Label(self.root, text="Ready", bd=1, relief="sunken", anchor="w")
         self.lbl_status.pack(side="bottom", fill="x")
 
-    def _on_canvas_configure(self, event):
-        """Update scrollable frame width when canvas is resized"""
-        self.canvas.itemconfig(self.canvas_window, width=event.width)
+        # 5. Generate Button
+        self.btn_run = tk.Button(self.root, text="GENERATE B-ROLL", bg="white", font=("Arial", 11, "bold"),
+                                    command=self.generate)
+        self.btn_run.pack(fill="x", padx=20, pady=10, ipady=5)
         
     def update_count(self):
         count = sum(1 for name, cfg in self.clip_configs.items() if cfg['var'].get())
         total = len(self.clip_configs)
-        self.lbl_count.config(text=f"{count} of {total} selected")
+        self.lbl_count.config(text=f"Selected: {count} / {total}")
 
     def select_all(self):
         for name, cfg in self.clip_configs.items():
             cfg['var'].set(True)
-            # Show configure button (using grid)
+            # Show configure button
             if 'btn_config' in cfg:
-                cfg['btn_config'].grid()
+                cfg['btn_config'].pack(side="right", padx=5)
         self.update_count()
 
     def select_none(self):
@@ -288,7 +156,7 @@ class BRollGenerator:
             cfg['var'].set(False)
             # Hide configure button and close config if open
             if 'btn_config' in cfg:
-                cfg['btn_config'].grid_remove()
+                cfg['btn_config'].pack_forget()
             if cfg['expanded']:
                 cfg['config_frame'].pack_forget()
                 cfg['expanded'] = False
@@ -309,7 +177,7 @@ class BRollGenerator:
             cfg['expanded'] = False
         else:
             # Pack config frame right after the clip row (inside the container)
-            cfg['config_frame'].pack(fill="x", after=cfg['clip_row'])
+            cfg['config_frame'].pack(fill="x", padx=20, pady=2, after=cfg['clip_row'])
             cfg['expanded'] = True
 
     def reset_clip_range(self, clip_name):
@@ -380,11 +248,10 @@ class BRollGenerator:
     def scan_media_pool(self):
         if not media_pool: return
 
-        self.log("Scanning...")
-
-        # Clear existing clips
-        for widget in self.scrollable_frame.winfo_children():
-            widget.destroy()
+        self.log("Scanning Media Pool & Tracks...")
+        
+        # 1. Update Clips
+        for widget in self.scrollable_frame.winfo_children(): widget.destroy()
         self.clip_configs = {}
         root_folder = media_pool.GetRootFolder()
 
@@ -393,8 +260,7 @@ class BRollGenerator:
             clips = folder.GetClipList()
             for clip in clips:
                 c_type = clip.GetClipProperty("Type")
-                if "Timeline" in c_type:
-                    continue
+                if "Timeline" in c_type: continue
                 if "Video" in c_type or "Image" in c_type or "Stills" in c_type:
                     found.append((clip, folder))
             subfolders = folder.GetSubFolderList()
@@ -403,12 +269,10 @@ class BRollGenerator:
             return found
 
         all_clips = get_clips_recursive(root_folder)
-        self.log(f"Found {len(all_clips)} clips")
+        self.log(f"Found {len(all_clips)} clips.")
 
         if not all_clips:
-            empty_label = tk.Label(self.scrollable_frame, text="No clips found",
-                                   font=("Arial", 9), bg=self.BG_MEDIUM, fg=self.FG_SECONDARY)
-            empty_label.pack(pady=20)
+            tk.Label(self.scrollable_frame, text="No Video Clips Found!").pack()
         else:
             for clip, folder in all_clips:
                 clip_name = clip.GetName()
@@ -431,89 +295,80 @@ class BRollGenerator:
                         duration_sec = 0
                         duration_str = "0:00"
 
-                # Create container frame
-                container = tk.Frame(self.scrollable_frame, bg=self.BG_MEDIUM)
-                container.pack(fill="x", pady=1)
+                # Create container frame that holds both clip row and config
+                container = tk.Frame(self.scrollable_frame)
+                container.pack(fill="x", padx=5, pady=2)
 
-                # Main clip row using grid for fixed positioning
-                clip_row = tk.Frame(container, bg=self.BG_MEDIUM)
-                clip_row.pack(fill="x", padx=8, pady=4)
-                clip_row.grid_columnconfigure(1, weight=1)  # Make middle column expand
+                # Create main clip row frame
+                clip_row = tk.Frame(container)
+                clip_row.pack(fill="x")
 
-                # Checkbox (column 0)
+                # Checkbox and label
                 var = tk.BooleanVar(value=False)
 
-                # Truncate filename for display
-                display_name = self.truncate_filename(clip_name)
+                # Pack checkbox first (left side)
+                chk = tk.Checkbutton(clip_row, text=f"{clip_name} ({duration_str})",
+                                     variable=var, anchor="w")
+                chk.pack(side="left", fill="x", expand=True)
 
-                # Configure button (column 2) - always in grid, visibility controlled
-                btn_config = ttk.Button(clip_row, text="Configure",
-                                       command=lambda cn=clip_name: self.toggle_clip_config(cn),
-                                       style="Small.TButton")
-                # Place in grid but hide initially
-                btn_config.grid(row=0, column=2, padx=(8, 0))
-                btn_config.grid_remove()  # Hide but keep position
+                # Configure button - pack on right side after checkbox, then hide
+                btn_config = tk.Button(clip_row, text="⚙ Configure", font=("Arial", 8),
+                                       command=lambda cn=clip_name: self.toggle_clip_config(cn))
+                btn_config.pack(side="right", padx=5)
+                btn_config.pack_forget()  # Hide initially
 
-                # Callback to show/hide configure button
+                # Callback to show/hide configure button based on selection
                 def on_checkbox_toggle(v=var, btn=btn_config, cn=clip_name):
                     if v.get():
-                        btn.grid()  # Show button (position preserved)
+                        btn.pack(side="right", padx=5)
                     else:
-                        btn.grid_remove()  # Hide button (position preserved)
+                        btn.pack_forget()
                         # Also close config if open
                         if cn in self.clip_configs and self.clip_configs[cn]['expanded']:
                             self.clip_configs[cn]['config_frame'].pack_forget()
                             self.clip_configs[cn]['expanded'] = False
                     self.update_count()
+                
+                # Now configure the checkbox command
+                chk.config(command=on_checkbox_toggle)
 
-                chk = tk.Checkbutton(clip_row, text=f"{display_name}  ({duration_str})",
-                                     variable=var, anchor="w", command=on_checkbox_toggle,
-                                     font=("Arial", 10), bg=self.BG_MEDIUM, fg=self.FG_PRIMARY,
-                                     activebackground=self.BG_MEDIUM, activeforeground=self.FG_PRIMARY,
-                                     selectcolor=self.BG_LIGHT)
-                chk.grid(row=0, column=0, columnspan=2, sticky="w")
-
-                # Configuration panel (hidden by default)
-                config_frame = tk.Frame(container, bg=self.BG_LIGHT)
-
-                config_inner = tk.Frame(config_frame, bg=self.BG_LIGHT)
-                config_inner.pack(fill="x", padx=12, pady=8)
+                # Hidden configuration frame (dark theme)
+                config_frame = tk.Frame(container, bg="#2d2d2d")
 
                 if is_still:
-                    # Still images - show info only
-                    tk.Label(config_inner, text="Still image (no range settings)",
-                            font=("Arial", 8), bg=self.BG_LIGHT, fg=self.FG_SECONDARY).pack(side="left")
+                    # For still images, show disabled inputs
+                    tk.Label(config_frame, text="Start:", bg="#2d2d2d", fg="white").pack(side="left", padx=5)
+                    entry_start = tk.Entry(config_frame, width=8, state="disabled")
+                    entry_start.insert(0, "N/A")
+                    entry_start.pack(side="left")
+
+                    tk.Label(config_frame, text="End:", bg="#2d2d2d", fg="white").pack(side="left", padx=5)
+                    entry_end = tk.Entry(config_frame, width=8, state="disabled")
+                    entry_end.insert(0, "N/A")
+                    entry_end.pack(side="left")
+
                     range_start = tk.DoubleVar(value=0.0)
                     range_end = tk.DoubleVar(value=999999.0)
                 else:
-                    # Video clips - range inputs
+                    # For video clips, create functional inputs
                     range_start = tk.DoubleVar(value=0.0)
                     range_end = tk.DoubleVar(value=duration_sec)
 
-                    entry_style = {"width": 7, "bg": self.BG_MEDIUM, "fg": self.FG_PRIMARY,
-                                  "insertbackground": self.FG_PRIMARY, "bd": 1}
-
-                    tk.Label(config_inner, text="Use range:", font=("Arial", 8),
-                            bg=self.BG_LIGHT, fg=self.FG_SECONDARY).pack(side="left")
-
-                    entry_start = tk.Entry(config_inner, textvariable=range_start, **entry_style)
-                    entry_start.pack(side="left", padx=(8, 0))
+                    tk.Label(config_frame, text="Start:", bg="#2d2d2d", fg="white").pack(side="left", padx=5)
+                    entry_start = tk.Entry(config_frame, textvariable=range_start, width=8)
+                    entry_start.pack(side="left")
                     entry_start.bind("<FocusOut>", lambda e, cn=clip_name: self.validate_clip_range(cn))
 
-                    tk.Label(config_inner, text="–", font=("Arial", 8),
-                            bg=self.BG_LIGHT, fg=self.FG_SECONDARY).pack(side="left", padx=4)
-
-                    entry_end = tk.Entry(config_inner, textvariable=range_end, **entry_style)
+                    tk.Label(config_frame, text="sec  End:", bg="#2d2d2d", fg="white").pack(side="left", padx=5)
+                    entry_end = tk.Entry(config_frame, textvariable=range_end, width=8)
                     entry_end.pack(side="left")
                     entry_end.bind("<FocusOut>", lambda e, cn=clip_name: self.validate_clip_range(cn))
 
-                    tk.Label(config_inner, text="sec", font=("Arial", 8),
-                            bg=self.BG_LIGHT, fg=self.FG_SECONDARY).pack(side="left", padx=(4, 12))
+                    tk.Label(config_frame, text="sec", bg="#2d2d2d", fg="white").pack(side="left", padx=5)
 
-                    btn_reset = ttk.Button(config_inner, text="Reset",
-                                          command=lambda cn=clip_name: self.reset_clip_range(cn),
-                                          style="Small.TButton")
-                    btn_reset.pack(side="left")
+                    btn_reset = tk.Button(config_frame, text="Reset", font=("Arial", 8),
+                                          command=lambda cn=clip_name: self.reset_clip_range(cn))
+                    btn_reset.pack(side="left", padx=10)
 
                 # Store configuration
                 self.clip_configs[clip_name] = {
@@ -525,7 +380,6 @@ class BRollGenerator:
                     'range_end': range_end,
                     'config_frame': config_frame,
                     'clip_row': clip_row,
-                    'container': container,
                     'btn_config': btn_config,
                     'expanded': False,
                     'is_still': is_still
@@ -533,21 +387,21 @@ class BRollGenerator:
 
         self.update_count()
 
-        # Update track options
+        # 2. Update Tracks (Logic: New Track OR Existing Tracks except V1)
         try:
             timeline = project.GetCurrentTimeline()
             if timeline:
                 track_count = timeline.GetTrackCount("video")
+                # Options: "New Track", then "Track 2", "Track 3" ... (Skip 1)
                 options = ["New Track"]
                 for i in range(2, track_count + 1):
                     options.append(f"Track {i}")
+                
                 self.combo_tracks['values'] = options
-                self.combo_tracks.current(0)
+                self.combo_tracks.current(0) # Default to New Track
         except Exception:
             self.combo_tracks['values'] = ["New Track"]
             self.combo_tracks.current(0)
-
-        self.log("Ready")
 
     def generate(self):
         """Orchestrator - validates and delegates to sub-methods"""
