@@ -306,10 +306,16 @@ class BRollGenerator:
                 # Checkbox and label
                 var = tk.BooleanVar(value=False)
 
-                # Configure button (initially hidden, shown when clip is selected)
+                # Pack checkbox first (left side)
+                chk = tk.Checkbutton(clip_row, text=f"{clip_name} ({duration_str})",
+                                     variable=var, anchor="w")
+                chk.pack(side="left", fill="x", expand=True)
+
+                # Configure button - pack on right side after checkbox, then hide
                 btn_config = tk.Button(clip_row, text="⚙ Configure", font=("Arial", 8),
                                        command=lambda cn=clip_name: self.toggle_clip_config(cn))
-                # Don't pack yet - will be shown when checkbox is selected
+                btn_config.pack(side="right", padx=5)
+                btn_config.pack_forget()  # Hide initially
 
                 # Callback to show/hide configure button based on selection
                 def on_checkbox_toggle(v=var, btn=btn_config, cn=clip_name):
@@ -322,10 +328,9 @@ class BRollGenerator:
                             self.clip_configs[cn]['config_frame'].pack_forget()
                             self.clip_configs[cn]['expanded'] = False
                     self.update_count()
-
-                chk = tk.Checkbutton(clip_row, text=f"{clip_name} ({duration_str})",
-                                     variable=var, anchor="w", command=on_checkbox_toggle)
-                chk.pack(side="left", fill="x", expand=True)
+                
+                # Now configure the checkbox command
+                chk.config(command=on_checkbox_toggle)
 
                 # Hidden configuration frame (dark theme)
                 config_frame = tk.Frame(container, bg="#2d2d2d")
