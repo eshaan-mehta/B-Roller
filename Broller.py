@@ -148,7 +148,7 @@ class BRollGenerator:
 
 
         # 5. Generate Button
-        self.btn_run = tk.Button(self.root, text="GENERATE B-ROLL", bg="white", font=("Arial", 14, "bold"),
+        self.btn_run = tk.Button(self.root, text="GENERATE B-ROLL", bg="blue", font=("Arial", 14, "bold"),
                                     command=self.generate)
         self.btn_run.pack(fill="x", padx=20, pady=10, ipady=5)
         
